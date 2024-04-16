@@ -107,7 +107,7 @@ func (r *Registry) GetServiceByID(id string) ([]Service, bool) {
 }
 
 // DiscoverHandler handles requests from clients to discover services.
-func DiscoverHandler(registry *Registry) http.HandlerFunc {
+func DiscoverServiceByID(registry *Registry) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		services, ok := registry.GetServiceByID(id)
@@ -119,6 +119,39 @@ func DiscoverHandler(registry *Registry) http.HandlerFunc {
 	}
 }
 
+func DiscoverAllServices(registry *Registry) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var svcs []Service
+		for _, value := range registry.services {
+			svcs = append(svcs, value)
+		}
+
+		json.NewEncoder(w).Encode(svcs)
+	}
+}
+
+type Config struct {
+	serviceConfig ServiceConfig `yaml:"services"`
+}
+
+type ServiceConfig struct {
+	Name string `yaml:"name"`
+	Host string `yaml:"host"`
+	Port string `yaml:"port"`
+}
+
+// func configureService(conf chan<- Config) {
+// 	configPath := os.Getenv("CONFIG_PATH")
+// 	configData, err := os.ReadFile(configPath)
+// 	if err != nil {
+// 		log.Fatalln("No config provided")
+// 	}
+// 	var config []Config
+// 	if err := yaml.Unmarshal(configData, &config); err != nil {
+// 		log.Fatalln("Bad config")
+// 	}
+
+// }
 func main() {
 	registry := NewRegistry()
 
@@ -132,13 +165,23 @@ func main() {
 		Port: 7777,
 	}
 
-	registry.Register(service1)
+	service2 := Service{
+		ID: "service2",
+		Hosts: []Host{
+			Host{"192.168.1.88", ""},
+			Host{"localhost", ""},
+		},
+		Port: 9999,
+	}
+
+	registry.Register(service1, service2)
 
 	// go HealthCheck(registry, 5*time.Second)
 	go HealthCheck(registry, 5*time.Second)
 
 	// HTTP endpoints
-	http.HandleFunc("/discover", DiscoverHandler(registry))
+	http.HandleFunc("/service", DiscoverServiceByID(registry))
+	http.HandleFunc("/discover", DiscoverAllServices(registry))
 
 	// Start the HTTP server
 	fmt.Println("Service registry running on :8081")

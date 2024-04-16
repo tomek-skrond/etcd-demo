@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type Host struct {
@@ -23,10 +25,10 @@ type Service struct {
 	// Add other metadata as needed
 }
 
-func discoverServices(svc string, discoveredHosts chan<- Service) {
+func discoverServices(discoveredHosts chan<- []*Service) {
 	for {
-		var serviceResponse []Service
-		call := fmt.Sprintf("http://localhost:8081/discover?id=%s", svc)
+		var serviceResponse []*Service
+		call := fmt.Sprintf("http://localhost:8081/discover")
 
 		resp, err := http.Get(call)
 		if err != nil {
@@ -54,36 +56,49 @@ func discoverServices(svc string, discoveredHosts chan<- Service) {
 		// 	log.Println("Failed to discover services (no hosts found)", err)
 		// }
 
-		discoveredHosts <- serviceResponse[0]
+		discoveredHosts <- serviceResponse
 		time.Sleep(5 * time.Second)
 	}
 
 }
 
 func main() {
-	discoveredSvc := make(chan Service)
+	discoveredSvc := make(chan []*Service)
 	proxy := NewLoadBalancingReverseProxy()
 
 	go func() {
+		listenPort := ":8080"
 		// use http.Handle instead of http.HandleFunc when your struct implements http.Handler interface
-		// r := mux.NewRouter()
+		r := mux.NewRouter()
+		r.StrictSlash(true)
 
-		http.HandleFunc("/", proxy.ServeHTTP)
-		err := http.ListenAndServe(":8080", nil)
-		if err != nil {
-			panic(err)
+		discSvc := <-discoveredSvc
+		for _, svc := range discSvc {
+			// svcListenString := fmt.Sprintf("/%s/{endpoint}", svc.ID)
+			// r.HandleFunc(svcListenString, proxy.ServeHTTP).Name(svc.ID)
+			r.PathPrefix("/" + svc.ID + "/{endpoint}").HandlerFunc(proxy.ServeHTTP)
+			r.PathPrefix("/" + svc.ID).HandlerFunc(proxy.ServeHTTP)
 		}
+
+		log.Printf("Listening on services, port: %s\n", listenPort)
+
+		//spaghetti code
+		// func(r *mux.Router, svcs []*Service) []string {
+		// 	var routes []string
+		// 	for _, svc := range svcs {
+		// 		routes = append(routes, r.GetRoute(svc.ID).GetName())
+		// 	}
+		// 	return routes
+		// }(r, discSvc),
+		log.Println(http.ListenAndServe(listenPort, r))
+
 	}()
 
-	go discoverServices("service1", discoveredSvc)
+	go discoverServices(discoveredSvc)
 
 	for dscSvc := range discoveredSvc {
-		// dscSvc := <-discoveredSvc
 		// Update the load balancing reverse proxy with the discovered services
 		proxy.UpdateService(dscSvc)
-		log.Println("Updated hosts:", dscSvc)
-		// time.Sleep(2 * time.Second)
-
 	}
 
 	select {}
