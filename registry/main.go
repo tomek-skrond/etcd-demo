@@ -152,6 +152,11 @@ type ServiceConfig struct {
 // 	}
 
 // }
+
+func loadConfiguration() {
+	fmt.Println("loading conf")
+}
+
 func main() {
 	registry := NewRegistry()
 
@@ -159,8 +164,8 @@ func main() {
 	service1 := Service{
 		ID: "service1",
 		Hosts: []Host{
-			Host{"192.168.1.88", ""},
 			Host{"localhost", ""},
+			Host{"192.168.247.86", ""},
 		},
 		Port: 7777,
 	}
@@ -168,13 +173,14 @@ func main() {
 	service2 := Service{
 		ID: "service2",
 		Hosts: []Host{
-			Host{"192.168.1.88", ""},
+			Host{"192.168.247.86", ""},
 			Host{"localhost", ""},
 		},
 		Port: 9999,
 	}
 
-	registry.Register(service1, service2)
+	svcs := []Service{service1, service2}
+	registry.Register(svcs...)
 
 	// go HealthCheck(registry, 5*time.Second)
 	go HealthCheck(registry, 5*time.Second)

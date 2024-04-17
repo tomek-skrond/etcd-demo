@@ -43,13 +43,15 @@ func (lb *LoadBalancingReverseProxy) SelectRandomHostOfService(svcId string) *ur
 		return nil
 	}
 	for _, s := range lb.services {
-		for _, host := range s.Hosts {
-			if host.Status == "active" {
-				activeHosts = append(activeHosts, host)
+		if s.ID == svcId {
+			for _, host := range s.Hosts {
+				if host.Status == "active" {
+					activeHosts = append(activeHosts, host)
+				}
 			}
 		}
 	}
-
+	// fmt.Printf("active hosts of service %s: %s\n", svcId, activeHosts)
 	if len(activeHosts) > 0 {
 		selectedHost := activeHosts[rand.Intn(len(activeHosts))]
 		hostAndPort := fmt.Sprintf("%s:%d", selectedHost.IP, lb.services[currentServiceIndex].Port)
@@ -93,7 +95,7 @@ func (lb *LoadBalancingReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Re
 	} else {
 		targetServiceRoute = "/" + endpoint
 	}
-	fmt.Println(targetServiceRoute, srcHost)
+	// fmt.Println(targetServiceRoute, srcHost)
 
 	currentServiceIndex := lb.GetCurrentServiceIndex(currentServiceId)
 	if currentServiceIndex == -1 {
@@ -101,6 +103,7 @@ func (lb *LoadBalancingReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Re
 		return
 	}
 	targetURL := lb.SelectRandomHostOfService(currentServiceId)
+	// fmt.Printf("SERVICE %s URL %s\n", currentServiceId, targetURL)
 	if targetURL == nil {
 		msg := fmt.Sprintf("No active hosts in service %s available", currentServiceId)
 		http.Error(w, msg, http.StatusServiceUnavailable)
