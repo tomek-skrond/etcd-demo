@@ -2,23 +2,27 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 type Host struct {
-	IP     string
-	Status string
+	IP     string `json:"ip" yaml:"ip"`
+	Status string `json:"status" yaml:"status"`
 }
 
 // Service represents a service with its ID, host, port, and status.
 type Service struct {
-	ID    string `json:"id"`
-	Hosts []Host `json:"hosts"`
-	Port  int    `json:"port"`
+	ID    string `json:"id" yaml:"id"`
+	Hosts []Host `json:"hosts" yaml:"hosts"`
+	Port  int    `json:"port" yaml:"port"`
 	// Status string `json:"status"`
 	// Add other metadata as needed
 }
@@ -131,67 +135,52 @@ func DiscoverAllServices(registry *Registry) http.HandlerFunc {
 }
 
 type Config struct {
-	serviceConfig ServiceConfig `yaml:"services"`
+	Services []Service `yaml:"services"`
 }
 
-type ServiceConfig struct {
-	Name string `yaml:"name"`
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
-}
+func loadConfiguration(path string) []Service {
+	log.Println("loading configuration from path: ", path)
 
-// func configureService(conf chan<- Config) {
-// 	configPath := os.Getenv("CONFIG_PATH")
-// 	configData, err := os.ReadFile(configPath)
-// 	if err != nil {
-// 		log.Fatalln("No config provided")
-// 	}
-// 	var config []Config
-// 	if err := yaml.Unmarshal(configData, &config); err != nil {
-// 		log.Fatalln("Bad config")
-// 	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatalln("no valid configuration in: ", path)
+	}
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		log.Fatalln("error parsing config: ", err)
+	}
 
-// }
+	var svcs []Service
+	svcs = append(svcs, config.Services...)
 
-func loadConfiguration() {
-	fmt.Println("loading conf")
+	return svcs
 }
 
 func main() {
+
+	polling_rate := flag.Duration("polling-rate", 1000*time.Millisecond, "Interval for health check [ms]")
+	flag.Parse()
+
 	registry := NewRegistry()
 
-	// Example service registration
-	service1 := Service{
-		ID: "service1",
-		Hosts: []Host{
-			Host{"localhost", ""},
-			Host{"192.168.247.86", ""},
-		},
-		Port: 7777,
-	}
+	config_path := os.Getenv("REGISTRY_CONFIG_PATH")
+	services := loadConfiguration(config_path)
 
-	service2 := Service{
-		ID: "service2",
-		Hosts: []Host{
-			Host{"192.168.247.86", ""},
-			Host{"localhost", ""},
-		},
-		Port: 9999,
-	}
+	registry.Register(services...)
 
-	svcs := []Service{service1, service2}
-	registry.Register(svcs...)
+	// initialHealthCheck(registry, *polling_rate)
 
-	// go HealthCheck(registry, 5*time.Second)
-	go HealthCheck(registry, 5*time.Second)
+	go HealthCheck(registry, *polling_rate)
 
-	// HTTP endpoints
-	http.HandleFunc("/service", DiscoverServiceByID(registry))
-	http.HandleFunc("/discover", DiscoverAllServices(registry))
+	go func() {
+		// HTTP endpoints
+		http.HandleFunc("/service", DiscoverServiceByID(registry))
+		http.HandleFunc("/discover", DiscoverAllServices(registry))
 
-	// Start the HTTP server
-	fmt.Println("Service registry running on :8081")
-	http.ListenAndServe(":8081", nil)
+		// Start the HTTP server
+		fmt.Println("Service registry running on :8081")
+		http.ListenAndServe(":8081", nil)
+	}()
 
 	select {}
 }
@@ -199,11 +188,12 @@ func main() {
 func HealthCheck(registry *Registry, interval time.Duration) {
 	for {
 		registry.mu.RLock()
+		client := http.Client{Timeout: interval}
 		for _, service := range registry.services {
 			go func(service Service) {
 				for _, host := range service.Hosts {
 					url := fmt.Sprintf("http://%s:%d/health", host.IP, service.Port)
-					resp, err := http.Get(url)
+					resp, err := client.Get(url)
 					if err != nil || resp.StatusCode != http.StatusOK {
 						registry.SetStatus(service.ID, "inactive", host.IP)
 					} else {

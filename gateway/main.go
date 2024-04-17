@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -25,7 +26,7 @@ type Service struct {
 	// Add other metadata as needed
 }
 
-func discoverServices(discoveredHosts chan<- []*Service) {
+func discoverServices(discoveredHosts chan<- []*Service, interval time.Duration) {
 	for {
 		var serviceResponse []*Service
 		call := fmt.Sprintf("http://localhost:8081/discover")
@@ -33,42 +34,40 @@ func discoverServices(discoveredHosts chan<- []*Service) {
 		resp, err := http.Get(call)
 		if err != nil {
 			log.Println("Failed to discover services (response error)", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(interval)
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Println("Failed to discover services (read body)", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(interval)
 			continue
 		}
 		resp.Body.Close()
 
 		if err := json.Unmarshal(body, &serviceResponse); err != nil {
 			log.Println("Failed to discover services (unmarshal body)", err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(interval)
 			continue
 		}
 
-		// hosts := serviceResponse[0].Hosts
-		// if len(hosts) == 0 {
-		// 	log.Println("Failed to discover services (no hosts found)", err)
-		// }
-
 		discoveredHosts <- serviceResponse
-		time.Sleep(5 * time.Second)
+		time.Sleep(interval)
 	}
 
 }
 
 func main() {
+
+	polling_rate := flag.Duration("polling-rate", 1000*time.Millisecond, "Interval for polling service discovery [ms]")
+	flag.Parse()
+
 	discoveredSvc := make(chan []*Service)
 	proxy := NewLoadBalancingReverseProxy()
 
 	go func() {
 		listenPort := ":8080"
-		// use http.Handle instead of http.HandleFunc when your struct implements http.Handler interface
 		r := mux.NewRouter()
 		r.StrictSlash(true)
 
@@ -81,20 +80,11 @@ func main() {
 		}
 
 		log.Printf("Listening on services, port: %s\n", listenPort)
-
-		//spaghetti code
-		// func(r *mux.Router, svcs []*Service) []string {
-		// 	var routes []string
-		// 	for _, svc := range svcs {
-		// 		routes = append(routes, r.GetRoute(svc.ID).GetName())
-		// 	}
-		// 	return routes
-		// }(r, discSvc),
 		log.Println(http.ListenAndServe(listenPort, r))
 
 	}()
 
-	go discoverServices(discoveredSvc)
+	go discoverServices(discoveredSvc, *polling_rate)
 
 	for dscSvc := range discoveredSvc {
 		// Update the load balancing reverse proxy with the discovered services

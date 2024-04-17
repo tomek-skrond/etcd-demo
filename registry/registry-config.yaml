@@ -1,3 +1,23 @@
-service1:
-  - "192.168.1.88"
-  - "localhost"
+services:
+  - id: service1
+    port: 7777
+    hosts:
+      - ip: "192.168.1.88"
+        status: "active"
+      - ip: "localhost"
+        status: "inactive"
+  - id: service2
+    port: 9999
+    hosts:
+      - ip: "192.168.1.88"
+        status: "active"
+      - ip: "localhost"
+        status: "inactive"
+  - id: service3
+    port: 6666
+    hosts:
+      - ip: "192.168.1.88"
+        status: "active"
+      - ip: "localhost"
+        status: "inactive"
+
