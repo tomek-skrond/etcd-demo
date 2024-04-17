@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -28,8 +29,12 @@ type Service struct {
 
 func discoverServices(discoveredHosts chan<- []*Service, interval time.Duration) {
 	for {
+		registryHostname := os.Getenv("REGISTRY_HOSTNAME")
+		if registryHostname == "" {
+			registryHostname = "localhost"
+		}
 		var serviceResponse []*Service
-		call := fmt.Sprintf("http://localhost:8081/discover")
+		call := fmt.Sprintf("http://%s:8081/discover", registryHostname)
 
 		resp, err := http.Get(call)
 		if err != nil {

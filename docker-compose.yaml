@@ -1,0 +1,39 @@
+version: "3.8"
+ 
+services:
+  registry:
+    container_name: registry
+    restart: always
+    build: ./registry
+    environment:
+      REGISTRY_CONFIG_PATH: "registry-config.yaml"
+    ports:
+      - "8081:8081"
+  gateway:
+    depends_on:
+      - registry
+    container_name: gateway
+    restart: always
+    build: ./gateway
+    environment:
+      REGISTRY_HOSTNAME: "registry"
+    ports:
+      - "8080:8080"
+  svc1:
+    depends_on:
+      - gateway
+    restart: always
+    build: ./svc
+    ports:
+      - "7777"
+    deploy:
+      replicas: 3
+  svc2:
+    depends_on:
+      - gateway
+    restart: always
+    build: ./svc2
+    ports:
+      - "7777"
+    deploy:
+      replicas: 3

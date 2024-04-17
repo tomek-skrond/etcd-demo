@@ -144,10 +144,13 @@ func loadConfiguration(path string) []Service {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalln("no valid configuration in: ", path)
+		// log.Println("no valid configuration in: ", path)
+		return nil
 	}
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		log.Fatalln("error parsing config: ", err)
+		return nil
 	}
 
 	var svcs []Service

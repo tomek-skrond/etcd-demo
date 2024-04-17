@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 )
@@ -12,12 +15,17 @@ func main() {
 
 	listenPort := ":9999"
 
+	instance, err := os.Hostname()
+	if err != nil {
+		instance = fmt.Sprintf("%d", rand.Intn(1000))
+	}
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]string{
 			"service_endpoint": "/",
-			"instance":         "A",
+			"instance":         instance,
 			"port":             listenPort,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -27,7 +35,7 @@ func main() {
 	r.HandleFunc("/service", func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]string{
 			"service_endpoint": "/service",
-			"instance":         "A",
+			"instance":         instance,
 			"port":             listenPort,
 		}
 
@@ -38,7 +46,7 @@ func main() {
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]string{
 			"service_endpoint": "/health",
-			"instance":         "A",
+			"instance":         instance,
 			"port":             listenPort,
 			"status":           "healthy",
 		}

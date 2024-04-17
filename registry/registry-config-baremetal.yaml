@@ -1,0 +1,24 @@
+services:
+  - id: service1
+    port: 7777
+    hosts:
+      - ip: "192.168.1.88"
+        status: ""
+      - ip: "localhost"
+        status: ""
+      - ip: "192.168.1.109"
+        status: ""
+  - id: service2
+    port: 9999
+    hosts:
+      - ip: "192.168.1.88"
+        status: ""
+      - ip: "localhost"
+        status: ""
+  - id: service3
+    port: 6666
+    hosts:
+      - ip: "192.168.1.88"
+        status: ""
+      - ip: "localhost"
+        status: ""
