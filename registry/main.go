@@ -86,14 +86,6 @@ func (r *Registry) SetStatus(serviceID, status, hostIP string) {
 	// }
 }
 
-func containsFieldValue(host Host, value string) (int, bool) {
-	fmt.Println(host)
-	if host.IP == value {
-		return 1, true
-	}
-	return -1, false
-}
-
 // GetServiceByID retrieves a service by its ID.
 func (r *Registry) GetServiceByID(id string) ([]Service, bool) {
 	r.mu.RLock()
