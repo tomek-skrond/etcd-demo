@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 type Host struct {
@@ -73,15 +71,15 @@ func main() {
 
 	go func() {
 		listenPort := ":8080"
-		r := mux.NewRouter()
-		r.StrictSlash(true)
+		r := http.NewServeMux()
+		// r.StrictSlash(true)
 
 		discSvc := <-discoveredSvc
 		for _, svc := range discSvc {
 			// svcListenString := fmt.Sprintf("/%s/{endpoint}", svc.ID)
 			// r.HandleFunc(svcListenString, proxy.ServeHTTP).Name(svc.ID)
-			r.PathPrefix("/" + svc.ID + "/{endpoint}").HandlerFunc(proxy.ServeHTTP)
-			r.PathPrefix("/" + svc.ID).HandlerFunc(proxy.ServeHTTP)
+			r.HandleFunc("/"+svc.ID+"/{endpoint...}", proxy.ServeHTTP)
+			r.HandleFunc("/"+svc.ID, proxy.ServeHTTP)
 		}
 
 		log.Printf("Listening on services, port: %s\n", listenPort)

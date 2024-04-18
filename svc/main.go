@@ -56,5 +56,19 @@ func main() {
 		log.Printf("%s %s %s", r.URL, r.Header["X-Forwarded-For"], r.UserAgent())
 
 	})
+	r.HandleFunc("/service/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["id"]
+		response := map[string]string{
+			"service_endpoint": fmt.Sprintf("/service/%s", id),
+			"instance":         instance,
+			"port":             listenPort,
+			"status":           "healthy",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		log.Printf("%s %s %s", r.URL, r.Header["X-Forwarded-For"], r.UserAgent())
+
+	})
 	log.Fatalln(http.ListenAndServe(listenPort, r))
 }

@@ -8,8 +8,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 type LoadBalancingReverseProxy struct {
@@ -77,6 +75,7 @@ func (lb *LoadBalancingReverseProxy) GetCurrentServiceIndex(svcId string) int {
 
 // ServeHTTP forwards the HTTP request to one of the available hosts using load balancing.
 func (lb *LoadBalancingReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.PathValue("endpoint"))
 	srcHost := r.Host
 	srcScheme := "http://"
 	srcPath := r.URL.Path
@@ -85,7 +84,7 @@ func (lb *LoadBalancingReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Re
 	// should get rewritten into http://<service_host>:<service_port>/health
 	// targetServiceRoute is a sub path that is equal to destination url (for ex. /health or / or /service)
 	var targetServiceRoute string
-	endpoint := mux.Vars(r)["endpoint"]
+	endpoint := r.PathValue("endpoint")
 
 	wholePath := r.URL.Path
 	currentServiceId := getCurrentServiceFromURLPath(wholePath)
